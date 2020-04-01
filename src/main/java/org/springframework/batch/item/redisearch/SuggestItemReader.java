@@ -7,27 +7,24 @@ import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
+import com.redislabs.lettusearch.suggest.Suggestion;
 import com.redislabs.lettusearch.suggest.SuggetOptions;
-import com.redislabs.lettusearch.suggest.SuggetResult;
 
 import lombok.Builder;
 import lombok.Setter;
 
-public class SuggestItemReader<K, V, T> extends AbstractItemCountingItemStreamItemReader<SuggetResult<V>> {
+public class SuggestItemReader<K, V> extends AbstractItemCountingItemStreamItemReader<Suggestion<V>> {
 
 	private @Setter StatefulRediSearchConnection<K, V> connection;
 	private K key;
 	private V prefix;
 	private SuggetOptions options;
-	private Iterator<SuggetResult<V>> results;
-
-	public SuggestItemReader() {
-		setName(ClassUtils.getShortName(getClass()));
-	}
+	private Iterator<Suggestion<V>> results;
 
 	@Builder
 	protected SuggestItemReader(int currentItemCount, Integer maxItemCount, Boolean saveState,
 			StatefulRediSearchConnection<K, V> connection, K key, V prefix, SuggetOptions options) {
+		setName(ClassUtils.getShortName(getClass()));
 		setCurrentItemCount(currentItemCount);
 		setMaxItemCount(maxItemCount == null ? Integer.MAX_VALUE : maxItemCount);
 		setSaveState(saveState == null ? true : saveState);
@@ -39,12 +36,12 @@ public class SuggestItemReader<K, V, T> extends AbstractItemCountingItemStreamIt
 	}
 
 	@Override
-	protected void doOpen() throws Exception {
+	protected void doOpen() {
 		this.results = connection.sync().sugget(key, prefix, options).iterator();
 	}
 
 	@Override
-	protected SuggetResult<V> doRead() throws Exception {
+	protected Suggestion<V> doRead() {
 		if (results.hasNext()) {
 			return results.next();
 		}
@@ -52,7 +49,7 @@ public class SuggestItemReader<K, V, T> extends AbstractItemCountingItemStreamIt
 	}
 
 	@Override
-	protected void doClose() throws Exception {
+	protected void doClose() {
 		this.results = null;
 	}
 

@@ -25,14 +25,11 @@ public class CursorItemReader<K, V> extends AbstractItemCountingItemStreamItemRe
 	private AggregateWithCursorResults<K, V> results;
 	private Iterator<Map<K, V>> iterator;
 
-	public CursorItemReader() {
-		setName(ClassUtils.getShortName(getClass()));
-	}
-
 	@Builder
 	protected CursorItemReader(int currentItemCount, Integer maxItemCount, Boolean saveState,
 			StatefulRediSearchConnection<K, V> connection, String index, String query, Cursor cursor,
 			AggregateOptions options) {
+		setName(ClassUtils.getShortName(getClass()));
 		setCurrentItemCount(currentItemCount);
 		setMaxItemCount(maxItemCount == null ? Integer.MAX_VALUE : maxItemCount);
 		setSaveState(saveState == null ? true : saveState);
@@ -45,13 +42,13 @@ public class CursorItemReader<K, V> extends AbstractItemCountingItemStreamItemRe
 	}
 
 	@Override
-	protected void doOpen() throws Exception {
+	protected void doOpen() {
 		this.results = connection.sync().aggregate(index, query, cursor, options);
 		this.iterator = this.results.iterator();
 	}
 
 	@Override
-	protected Map<K, V> doRead() throws Exception {
+	protected Map<K, V> doRead() {
 		if (iterator.hasNext()) {
 			return iterator.next();
 		}
@@ -67,7 +64,7 @@ public class CursorItemReader<K, V> extends AbstractItemCountingItemStreamItemRe
 	}
 
 	@Override
-	protected void doClose() throws Exception {
+	protected void doClose() {
 		connection.sync().cursorDelete(index, results.getCursor());
 		this.results = null;
 		this.iterator = null;

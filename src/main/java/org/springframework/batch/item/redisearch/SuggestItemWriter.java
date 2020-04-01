@@ -6,49 +6,42 @@ import java.util.concurrent.TimeUnit;
 
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.core.convert.converter.Converter;
 import org.springframework.util.Assert;
 
 import com.redislabs.lettusearch.RediSearchAsyncCommands;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
+import com.redislabs.lettusearch.suggest.Suggestion;
 
 import io.lettuce.core.RedisFuture;
 import io.lettuce.core.RedisURI;
 import lombok.Setter;
 
-public class SuggestItemWriter<K, V, T> implements ItemWriter<T>, InitializingBean {
+public class SuggestItemWriter<K, V> implements ItemWriter<Suggestion<V>>, InitializingBean {
 
 	private @Setter StatefulRediSearchConnection<K, V> connection;
 	private @Setter boolean delete;
 	private K key;
-	private Converter<T, V> itemStringMapper;
-	private Converter<T, Double> itemScoreMapper;
 	private boolean increment;
-	private Converter<T, V> itemPayloadMapper;
 	private @Setter long timeout;
 
-	protected SuggestItemWriter(StatefulRediSearchConnection<K, V> connection, boolean delete, K key,
-			Converter<T, V> itemStringMapper, Converter<T, Double> itemScoreMapper, boolean increment,
-			Converter<T, V> itemPayloadMapper, Long timeout) {
+	protected SuggestItemWriter(StatefulRediSearchConnection<K, V> connection, boolean delete, K key, boolean increment,
+			Long timeout) {
 		Assert.notNull(connection, "connection is required.");
 		this.connection = connection;
 		this.delete = delete;
 		this.key = key;
-		this.itemStringMapper = itemStringMapper;
-		this.itemScoreMapper = itemScoreMapper;
-		this.itemPayloadMapper = itemPayloadMapper;
 		this.increment = increment;
 		this.timeout = timeout == null ? RedisURI.DEFAULT_TIMEOUT : timeout;
 	}
 
 	@Override
-	public void write(List<? extends T> items) throws Exception {
+	public void write(List<? extends Suggestion<V>> items) throws Exception {
 		if (delete) {
 			RediSearchAsyncCommands<K, V> commands = connection.async();
 			commands.setAutoFlushCommands(false);
 			List<RedisFuture<Boolean>> futures = new ArrayList<>();
-			for (T item : items) {
-				futures.add(commands.sugdel(key, itemStringMapper.convert(item)));
+			for (Suggestion<V> item : items) {
+				futures.add(commands.sugdel(key, item.getString()));
 			}
 			commands.flushCommands();
 			for (RedisFuture<Boolean> future : futures) {
@@ -58,9 +51,8 @@ public class SuggestItemWriter<K, V, T> implements ItemWriter<T>, InitializingBe
 			RediSearchAsyncCommands<K, V> commands = connection.async();
 			commands.setAutoFlushCommands(false);
 			List<RedisFuture<Long>> futures = new ArrayList<>();
-			for (T item : items) {
-				futures.add(commands.sugadd(key, itemStringMapper.convert(item), itemScoreMapper.convert(item),
-						increment, itemPayloadMapper.convert(item)));
+			for (Suggestion<V> item : items) {
+				futures.add(commands.sugadd(key, item, increment));
 			}
 			commands.flushCommands();
 			for (RedisFuture<Long> future : futures) {
@@ -70,10 +62,9 @@ public class SuggestItemWriter<K, V, T> implements ItemWriter<T>, InitializingBe
 	}
 
 	@Override
-	public void afterPropertiesSet() throws Exception {
+	public void afterPropertiesSet() {
 		Assert.notNull(connection, "A RediSearch connection is required.");
 		Assert.notNull(key, "A key is required.");
-		Assert.notNull(itemStringMapper, "A string mapper is required.");
 	}
 
 }

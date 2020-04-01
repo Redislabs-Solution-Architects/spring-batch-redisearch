@@ -21,13 +21,10 @@ public class AggregateItemReader<K, V> extends AbstractItemCountingItemStreamIte
 	private @Setter AggregateOptions options;
 	private Iterator<Map<K, V>> results;
 
-	public AggregateItemReader() {
-		setName(ClassUtils.getShortName(getClass()));
-	}
-
 	@Builder
 	protected AggregateItemReader(int currentItemCount, Integer maxItemCount, Boolean saveState,
 			StatefulRediSearchConnection<K, V> connection, String index, String query, AggregateOptions options) {
+		setName(ClassUtils.getShortName(getClass()));
 		setCurrentItemCount(currentItemCount);
 		setMaxItemCount(maxItemCount == null ? Integer.MAX_VALUE : maxItemCount);
 		setSaveState(saveState == null ? true : saveState);
@@ -39,12 +36,12 @@ public class AggregateItemReader<K, V> extends AbstractItemCountingItemStreamIte
 	}
 
 	@Override
-	protected void doOpen() throws Exception {
+	protected void doOpen() {
 		this.results = connection.sync().aggregate(index, query, options).iterator();
 	}
 
 	@Override
-	protected Map<K, V> doRead() throws Exception {
+	protected Map<K, V> doRead() {
 		if (results.hasNext()) {
 			return results.next();
 		}
@@ -52,7 +49,7 @@ public class AggregateItemReader<K, V> extends AbstractItemCountingItemStreamIte
 	}
 
 	@Override
-	protected void doClose() throws Exception {
+	protected void doClose() {
 		this.results = null;
 	}
 

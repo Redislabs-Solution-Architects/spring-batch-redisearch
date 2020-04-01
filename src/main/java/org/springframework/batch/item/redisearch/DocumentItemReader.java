@@ -36,12 +36,12 @@ public class DocumentItemReader<K, V> extends AbstractItemCountingItemStreamItem
 	}
 
 	@Override
-	protected void doOpen() throws Exception {
+	protected void doOpen() {
 		this.results = connection.sync().search(index, query, options).iterator();
 	}
 
 	@Override
-	protected Document<K, V> doRead() throws Exception {
+	protected Document<K, V> doRead() {
 		if (results.hasNext()) {
 			return results.next();
 		}
@@ -49,7 +49,7 @@ public class DocumentItemReader<K, V> extends AbstractItemCountingItemStreamItem
 	}
 
 	@Override
-	protected void doClose() throws Exception {
+	protected void doClose() {
 		this.results = null;
 	}
 
