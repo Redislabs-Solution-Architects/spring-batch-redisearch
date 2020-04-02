@@ -20,8 +20,8 @@ public class SuggestItemWriter<K, V> implements ItemWriter<Suggestion<V>>, Initi
 
 	private @Setter StatefulRediSearchConnection<K, V> connection;
 	private @Setter boolean delete;
-	private K key;
-	private boolean increment;
+	private final K key;
+	private final boolean increment;
 	private @Setter long timeout;
 
 	protected SuggestItemWriter(StatefulRediSearchConnection<K, V> connection, boolean delete, K key, boolean increment,

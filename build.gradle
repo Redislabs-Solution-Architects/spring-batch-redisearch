@@ -33,7 +33,7 @@ dependencies {
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 	implementation 'org.springframework.boot:spring-boot-starter-batch'
-	implementation 'com.redislabs:lettusearch:1.13.3'
+	implementation 'com.redislabs:lettusearch:2.0.1'
 	implementation 'org.apache.commons:commons-pool2'	
 	testImplementation('org.springframework.boot:spring-boot-starter-test') {
 		exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'

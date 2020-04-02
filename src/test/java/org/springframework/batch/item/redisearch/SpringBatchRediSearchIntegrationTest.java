@@ -30,46 +30,46 @@ import java.util.Map;
 @RunWith(SpringRunner.class)
 public class SpringBatchRediSearchIntegrationTest {
 
-	@Autowired
-	private JobLauncher jobLauncher;
-	@Autowired
-	private JobBuilderFactory jobBuilderFactory;
-	@Autowired
-	private StepBuilderFactory stepBuilderFactory;
-	@Autowired
-	private RediSearchClient client;
-	@Autowired
-	private StatefulRediSearchConnection<String, String> connection;
-	@Autowired
-	private FlatFileItemReader<Map<String, String>> fileReader;
-	@Autowired
-	private IndexCreateStep indexCreateStep;
+    @Autowired
+    private JobLauncher jobLauncher;
+    @Autowired
+    private JobBuilderFactory jobBuilderFactory;
+    @Autowired
+    private StepBuilderFactory stepBuilderFactory;
+    @Autowired
+    private RediSearchClient client;
+    @Autowired
+    private StatefulRediSearchConnection<String, String> connection;
+    @Autowired
+    private FlatFileItemReader<Map<String, String>> fileReader;
+    @Autowired
+    private IndexCreateStep indexCreateStep;
 
-	private Job documentWriteJob() {
-		DocumentItemWriter<String, String> writer = DocumentItemWriter.<String, String>builder()
-				.connection(client.connect()).index(Utils.INDEX).build();
-		TaskletStep writeStep = stepBuilderFactory.get("documentWriteStep")
-				.<Map<String, String>, Document<String, String>>chunk(10).reader(fileReader)
-				.processor(new MapDocumentProcessor()).writer(writer).build();
-		return jobBuilderFactory.get("documentWriteJob").start(indexCreateStep).next(writeStep).build();
-	}
+    private Job documentWriteJob() {
+        DocumentItemWriter<String, String> writer = DocumentItemWriter.<String, String>builder()
+                .connection(client.connect()).index(Utils.INDEX).build();
+        TaskletStep writeStep = stepBuilderFactory.get("documentWriteStep")
+                .<Map<String, String>, Document<String, String>>chunk(10).reader(fileReader)
+                .processor(new MapDocumentProcessor()).writer(writer).build();
+        return jobBuilderFactory.get("documentWriteJob").start(indexCreateStep).next(writeStep).build();
+    }
 
-	@Test
-	public void testDocumentReader() throws Exception {
-		connection.sync().flushall();
-		jobLauncher.run(documentWriteJob(), new JobParameters());
-		IndexInfo info = RediSearchUtils.getInfo(connection.sync().ftInfo(Utils.INDEX));
-		Assertions.assertEquals(2410, info.getNumDocs());
-		DocumentItemReader<String, String> reader = DocumentItemReader.<String, String>builder()
-				.connection(client.connect()).index(Utils.INDEX).query("*")
-				.options(SearchOptions.builder().limit(Limit.builder().num(3000).build()).build()).build();
-		List<Document<String, String>> docs = new ArrayList<>();
-		TaskletStep readStep = stepBuilderFactory.get("readStep")
-				.<Document<String, String>, Document<String, String>>chunk(10).reader(reader)
-				.writer(l -> docs.addAll(l)).build();
-		Job readJob = jobBuilderFactory.get("readJob").start(readStep).build();
-		jobLauncher.run(readJob, new JobParameters());
-		Assertions.assertEquals(2410, docs.size());
-	}
+    @Test
+    public void testDocumentReader() throws Exception {
+        connection.sync().flushall();
+        jobLauncher.run(documentWriteJob(), new JobParameters());
+        IndexInfo info = RediSearchUtils.getInfo(connection.sync().ftInfo(Utils.INDEX));
+        Assertions.assertEquals(2410, info.getNumDocs());
+        DocumentItemReader<String, String> reader = DocumentItemReader.<String, String>builder()
+                .connection(client.connect()).index(Utils.INDEX).query("*")
+                .options(SearchOptions.builder().limit(Limit.builder().num(3000).build()).build()).build();
+        List<Document<String, String>> docs = new ArrayList<>();
+        TaskletStep readStep = stepBuilderFactory.get("readStep")
+                .<Document<String, String>, Document<String, String>>chunk(10).reader(reader)
+                .writer(docs::addAll).build();
+        Job readJob = jobBuilderFactory.get("readJob").start(readStep).build();
+        jobLauncher.run(readJob, new JobParameters());
+        Assertions.assertEquals(2410, docs.size());
+    }
 
 }

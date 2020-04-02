@@ -1,24 +1,22 @@
 package org.springframework.batch.item.redisearch;
 
-import java.util.Iterator;
-
+import com.redislabs.lettusearch.StatefulRediSearchConnection;
+import com.redislabs.lettusearch.suggest.Suggestion;
+import com.redislabs.lettusearch.suggest.SuggetOptions;
+import lombok.Builder;
+import lombok.Setter;
 import org.springframework.batch.item.support.AbstractItemCountingItemStreamItemReader;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 
-import com.redislabs.lettusearch.StatefulRediSearchConnection;
-import com.redislabs.lettusearch.suggest.Suggestion;
-import com.redislabs.lettusearch.suggest.SuggetOptions;
-
-import lombok.Builder;
-import lombok.Setter;
+import java.util.Iterator;
 
 public class SuggestItemReader<K, V> extends AbstractItemCountingItemStreamItemReader<Suggestion<V>> {
 
 	private @Setter StatefulRediSearchConnection<K, V> connection;
-	private K key;
-	private V prefix;
-	private SuggetOptions options;
+	private final K key;
+	private final V prefix;
+	private final SuggetOptions options;
 	private Iterator<Suggestion<V>> results;
 
 	@Builder

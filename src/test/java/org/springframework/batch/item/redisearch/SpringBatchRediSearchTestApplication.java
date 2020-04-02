@@ -5,14 +5,8 @@ import java.time.Duration;
 import java.util.Map;
 
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
-import com.redislabs.lettusearch.search.Document;
-import org.hsqldb.index.Index;
-import org.springframework.batch.core.Job;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
-import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.repository.JobRepository;
-import org.springframework.batch.core.step.tasklet.TaskletStep;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.item.file.separator.DefaultRecordSeparatorPolicy;

@@ -30,7 +30,7 @@ public class DocumentItemWriter<K, V> extends AbstractItemStreamItemWriter<Docum
     String index;
     private @Setter
     long timeout;
-    private AddOptions options;
+    private final AddOptions options;
 
     @Builder
     protected DocumentItemWriter(StatefulRediSearchConnection<K, V> connection, boolean delete, boolean deleteDocument,
