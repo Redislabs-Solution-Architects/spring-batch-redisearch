@@ -1,5 +1,7 @@
 package org.springframework.batch.step.redisearch;
 
+import io.lettuce.core.RedisCommandExecutionException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.StepExecutionListener;
 import org.springframework.batch.core.repository.JobRepository;
@@ -13,16 +15,19 @@ import com.redislabs.lettusearch.index.Schema;
 import lombok.Builder;
 import lombok.Setter;
 
+@Slf4j
 public class IndexCreateStep extends AbstractStep {
 
 	private @Setter StatefulRediSearchConnection<?, ?> connection;
 	private @Setter String index;
 	private @Setter Schema schema;
 	private @Setter CreateOptions options;
+	@Setter
+	private boolean ignoreErrors;
 
 	@Builder
 	protected IndexCreateStep(JobRepository jobRepository, boolean allowStartIfComplete, int startLimit, StepExecutionListener[] listeners, String name, StatefulRediSearchConnection<?, ?> connection, String index, Schema schema,
-							  CreateOptions options) {
+							  CreateOptions options, boolean ignoreErrors) {
 		super(name);
 		setJobRepository(jobRepository);
 		setAllowStartIfComplete(allowStartIfComplete);
@@ -34,11 +39,20 @@ public class IndexCreateStep extends AbstractStep {
 		setIndex(index);
 		setSchema(schema);
 		setOptions(options);
+		setIgnoreErrors(ignoreErrors);
 	}
 
 	@Override
 	protected void doExecute(StepExecution stepExecution) {
-		connection.sync().create(index, schema, options);
+		try {
+			connection.sync().create(index, schema, options);
+		} catch (RedisCommandExecutionException e) {
+			if (ignoreErrors) {
+				log.debug("Could not create index {}", index, e);
+			} else {
+				throw e;
+			}
+		}
 	}
 
 	@Override
