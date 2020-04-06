@@ -15,18 +15,19 @@ import lombok.Builder;
 import lombok.Setter;
 
 @Slf4j
-public class IndexDropStep extends AbstractStep {
+public class IndexDropStep<K> extends AbstractStep {
+
     @Setter
-    private StatefulRediSearchConnection<?, ?> connection;
+    private StatefulRediSearchConnection<K, ?> connection;
     @Setter
-    private String index;
+    private K index;
     @Setter
     private DropOptions options;
     @Setter
     private boolean ignoreErrors;
 
     @Builder
-    protected IndexDropStep(JobRepository jobRepository, boolean allowStartIfComplete, int startLimit, StepExecutionListener[] listeners, String name, StatefulRediSearchConnection<?, ?> connection, String index,
+    protected IndexDropStep(JobRepository jobRepository, boolean allowStartIfComplete, int startLimit, StepExecutionListener[] listeners, String name, StatefulRediSearchConnection<K, ?> connection, K index,
                             DropOptions options, boolean ignoreErrors) {
         super(name);
         setJobRepository(jobRepository);

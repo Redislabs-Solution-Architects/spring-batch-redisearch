@@ -17,17 +17,22 @@ import lombok.Setter;
 
 public class CursorItemReader<K, V> extends AbstractItemCountingItemStreamItemReader<Map<K, V>> {
 
-	protected @Setter StatefulRediSearchConnection<K, V> connection;
-	private @Setter String index;
-	private @Setter String query;
-	private @Setter Cursor cursor;
-	private @Setter AggregateOptions options;
+	@Setter
+	protected StatefulRediSearchConnection<K, V> connection;
+	@Setter
+	private K index;
+	@Setter
+	private V query;
+	@Setter
+	private Cursor cursor;
+	@Setter
+	private AggregateOptions options;
 	private AggregateWithCursorResults<K, V> results;
 	private Iterator<Map<K, V>> iterator;
 
 	@Builder
 	protected CursorItemReader(int currentItemCount, Integer maxItemCount, Boolean saveState,
-			StatefulRediSearchConnection<K, V> connection, String index, String query, Cursor cursor,
+			StatefulRediSearchConnection<K, V> connection, K index, V query, Cursor cursor,
 			AggregateOptions options) {
 		setName(ClassUtils.getShortName(getClass()));
 		setCurrentItemCount(currentItemCount);

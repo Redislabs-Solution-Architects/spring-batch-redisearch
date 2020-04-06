@@ -77,7 +77,7 @@ public class SpringBatchRediSearchTestApplication {
 
     @Bean
 	IndexCreateStep indexCreateStep(JobRepository jobRepository, StatefulRediSearchConnection<String, String> connection) {
-    	return IndexCreateStep.builder().index(Utils.INDEX).schema(Utils.SCHEMA).jobRepository(jobRepository).name("index-create-step").connection(connection).build();
+    	return IndexCreateStep.<String>builder().index(Utils.INDEX).schema(Utils.SCHEMA).jobRepository(jobRepository).name("index-create-step").connection(connection).build();
 	}
 
 }

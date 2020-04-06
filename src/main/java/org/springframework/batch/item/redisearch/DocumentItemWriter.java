@@ -20,21 +20,21 @@ import lombok.Setter;
 
 public class DocumentItemWriter<K, V> extends AbstractItemStreamItemWriter<Document<K, V>> implements InitializingBean {
 
-    private @Setter
-    StatefulRediSearchConnection<K, V> connection;
-    private @Setter
-    boolean delete;
-    private @Setter
-    boolean deleteDocument;
-    private @Setter
-    String index;
-    private @Setter
-    long timeout;
+    @Setter
+    private StatefulRediSearchConnection<K, V> connection;
+    @Setter
+    private boolean delete;
+    @Setter
+    private boolean deleteDocument;
+    @Setter
+    private K index;
+    @Setter
+    private long timeout;
     private final AddOptions options;
 
     @Builder
     protected DocumentItemWriter(StatefulRediSearchConnection<K, V> connection, boolean delete, boolean deleteDocument,
-                                 String index, Long timeout, AddOptions options) {
+                                 K index, Long timeout, AddOptions options) {
         Assert.notNull(connection, "connection is required.");
         this.connection = connection;
         this.delete = delete;

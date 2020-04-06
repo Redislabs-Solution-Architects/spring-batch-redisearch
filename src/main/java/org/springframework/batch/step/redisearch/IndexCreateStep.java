@@ -16,51 +16,55 @@ import lombok.Builder;
 import lombok.Setter;
 
 @Slf4j
-public class IndexCreateStep extends AbstractStep {
+public class IndexCreateStep<K> extends AbstractStep {
 
-	private @Setter StatefulRediSearchConnection<?, ?> connection;
-	private @Setter String index;
-	private @Setter Schema schema;
-	private @Setter CreateOptions options;
-	@Setter
-	private boolean ignoreErrors;
+    @Setter
+    private StatefulRediSearchConnection<K, ?> connection;
+    @Setter
+    private K index;
+    @Setter
+    private Schema schema;
+    @Setter
+    private CreateOptions options;
+    @Setter
+    private boolean ignoreErrors;
 
-	@Builder
-	protected IndexCreateStep(JobRepository jobRepository, boolean allowStartIfComplete, int startLimit, StepExecutionListener[] listeners, String name, StatefulRediSearchConnection<?, ?> connection, String index, Schema schema,
-							  CreateOptions options, boolean ignoreErrors) {
-		super(name);
-		setJobRepository(jobRepository);
-		setAllowStartIfComplete(allowStartIfComplete);
-		setStartLimit(startLimit);
-		if (listeners!=null) {
-			setStepExecutionListeners(listeners);
-		}
-		setConnection(connection);
-		setIndex(index);
-		setSchema(schema);
-		setOptions(options);
-		setIgnoreErrors(ignoreErrors);
-	}
+    @Builder
+    protected IndexCreateStep(JobRepository jobRepository, boolean allowStartIfComplete, int startLimit, StepExecutionListener[] listeners, String name, StatefulRediSearchConnection<K, ?> connection, K index, Schema schema,
+                              CreateOptions options, boolean ignoreErrors) {
+        super(name);
+        setJobRepository(jobRepository);
+        setAllowStartIfComplete(allowStartIfComplete);
+        setStartLimit(startLimit);
+        if (listeners != null) {
+            setStepExecutionListeners(listeners);
+        }
+        setConnection(connection);
+        setIndex(index);
+        setSchema(schema);
+        setOptions(options);
+        setIgnoreErrors(ignoreErrors);
+    }
 
-	@Override
-	protected void doExecute(StepExecution stepExecution) {
-		try {
-			connection.sync().create(index, schema, options);
-		} catch (RedisCommandExecutionException e) {
-			if (ignoreErrors) {
-				log.debug("Could not create index {}", index, e);
-			} else {
-				throw e;
-			}
-		}
-	}
+    @Override
+    protected void doExecute(StepExecution stepExecution) {
+        try {
+            connection.sync().create(index, schema, options);
+        } catch (RedisCommandExecutionException e) {
+            if (ignoreErrors) {
+                log.debug("Could not create index {}", index, e);
+            } else {
+                throw e;
+            }
+        }
+    }
 
-	@Override
-	public void afterPropertiesSet() throws Exception {
-		Assert.state(connection != null, "A connection is required");
-		Assert.state(index != null, "An index is required");
-		Assert.state(schema != null, "A schema is required");
-		super.afterPropertiesSet();
-	}
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        Assert.state(connection != null, "A connection is required");
+        Assert.state(index != null, "An index is required");
+        Assert.state(schema != null, "A schema is required");
+        super.afterPropertiesSet();
+    }
 
 }

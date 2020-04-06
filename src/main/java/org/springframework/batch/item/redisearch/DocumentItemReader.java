@@ -15,42 +15,46 @@ import lombok.Setter;
 
 public class DocumentItemReader<K, V> extends AbstractItemCountingItemStreamItemReader<Document<K, V>> {
 
-	private @Setter StatefulRediSearchConnection<K, V> connection;
-	private @Setter String index;
-	private @Setter String query;
-	private @Setter SearchOptions options;
-	private Iterator<Document<K, V>> results;
+    @Setter
+    private StatefulRediSearchConnection<K, V> connection;
+    @Setter
+    private K index;
+    @Setter
+    private V query;
+    @Setter
+    private SearchOptions options;
+    private Iterator<Document<K, V>> results;
 
-	@Builder
-	protected DocumentItemReader(int currentItemCount, Integer maxItemCount, Boolean saveState,
-			StatefulRediSearchConnection<K, V> connection, String index, String query, SearchOptions options) {
-		setName(ClassUtils.getShortName(getClass()));
-		setCurrentItemCount(currentItemCount);
-		setMaxItemCount(maxItemCount == null ? Integer.MAX_VALUE : maxItemCount);
-		setSaveState(saveState == null ? true : saveState);
-		Assert.state(connection != null, "An instance of StatefulRediSearchConnection is required.");
-		this.connection = connection;
-		this.index = index;
-		this.query = query;
-		this.options = options;
-	}
+    @Builder
+    protected DocumentItemReader(int currentItemCount, Integer maxItemCount, Boolean saveState,
+                                 StatefulRediSearchConnection<K, V> connection, K index, V query, SearchOptions options) {
+        setName(ClassUtils.getShortName(getClass()));
+        setCurrentItemCount(currentItemCount);
+        setMaxItemCount(maxItemCount == null ? Integer.MAX_VALUE : maxItemCount);
+        setSaveState(saveState == null ? true : saveState);
+        Assert.state(connection != null, "An instance of StatefulRediSearchConnection is required.");
+        this.connection = connection;
+        this.index = index;
+        this.query = query;
+        this.options = options;
+    }
 
-	@Override
-	protected void doOpen() {
-		this.results = connection.sync().search(index, query, options).iterator();
-	}
+    @Override
+    protected void doOpen() {
+        this.results = connection.sync().search(index, query, options).iterator();
+    }
 
-	@Override
-	protected Document<K, V> doRead() {
-		if (results.hasNext()) {
-			return results.next();
-		}
-		return null;
-	}
+    @Override
+    protected Document<K, V> doRead() {
+        if (results.hasNext()) {
+            return results.next();
+        }
+        return null;
+    }
 
-	@Override
-	protected void doClose() {
-		this.results = null;
-	}
+    @Override
+    protected void doClose() {
+        this.results = null;
+    }
 
 }
