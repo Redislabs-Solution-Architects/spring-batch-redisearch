@@ -1,10 +1,10 @@
 package org.springframework.batch.item.redisearch;
 
-import java.net.MalformedURLException;
-import java.time.Duration;
-import java.util.Map;
-
+import com.redislabs.lettusearch.RediSearchClient;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
+import io.lettuce.core.RedisURI;
+import io.lettuce.core.resource.ClientResources;
+import io.lettuce.core.resource.DefaultClientResources;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.item.file.FlatFileItemReader;
@@ -17,13 +17,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-
-import com.redislabs.lettusearch.RediSearchClient;
-
-import io.lettuce.core.RedisURI;
-import io.lettuce.core.resource.ClientResources;
-import io.lettuce.core.resource.DefaultClientResources;
 import org.springframework.core.io.UrlResource;
+
+import java.net.MalformedURLException;
+import java.time.Duration;
+import java.util.Map;
 
 @SpringBootApplication
 @EnableBatchProcessing
@@ -55,10 +53,10 @@ public class SpringBatchRediSearchTestApplication {
         return RediSearchClient.create(clientResources, redisURI);
     }
 
-	@Bean(name = "rediSearchConnection", destroyMethod = "close")
-	StatefulRediSearchConnection<String, String> connection(RediSearchClient rediSearchClient) {
-		return rediSearchClient.connect();
-	}
+    @Bean(name = "rediSearchConnection", destroyMethod = "close")
+    StatefulRediSearchConnection<String, String> connection(RediSearchClient rediSearchClient) {
+        return rediSearchClient.connect();
+    }
 
     @Bean
     FlatFileItemReader<Map<String, String>> fileReader() throws MalformedURLException {
@@ -76,8 +74,10 @@ public class SpringBatchRediSearchTestApplication {
     }
 
     @Bean
-	IndexCreateStep indexCreateStep(JobRepository jobRepository, StatefulRediSearchConnection<String, String> connection) {
-    	return IndexCreateStep.<String>builder().index(Utils.INDEX).schema(Utils.SCHEMA).jobRepository(jobRepository).name("index-create-step").connection(connection).build();
-	}
+    IndexCreateStep indexCreateStep(JobRepository jobRepository, StatefulRediSearchConnection<String, String> connection) {
+        IndexCreateStep step = IndexCreateStep.<String, String>builder().connection(connection).index(Utils.INDEX).schema(Utils.SCHEMA).build();
+        step.setJobRepository(jobRepository);
+        return step;
+    }
 
 }
