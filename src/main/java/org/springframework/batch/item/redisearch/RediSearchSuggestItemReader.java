@@ -1,9 +1,12 @@
 package org.springframework.batch.item.redisearch;
 
+import com.redislabs.lettuce.helper.RedisOptions;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import com.redislabs.lettusearch.suggest.Suggestion;
 import com.redislabs.lettusearch.suggest.SuggetOptions;
-import lombok.Builder;
+import lombok.Setter;
+import lombok.experimental.Accessors;
+import org.springframework.batch.item.redisearch.support.LettuSearchHelper;
 import org.springframework.batch.item.support.AbstractItemCountingItemStreamItemReader;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
@@ -19,7 +22,6 @@ public class RediSearchSuggestItemReader<K, V> extends AbstractItemCountingItemS
 
     private Iterator<Suggestion<V>> results;
 
-    @Builder
     public RediSearchSuggestItemReader(StatefulRediSearchConnection<K, V> connection, K key, V prefix, SuggetOptions suggetOptions) {
         setName(ClassUtils.getShortName(getClass()));
         Assert.notNull(connection, "A RediSearch connection is required.");
@@ -47,6 +49,25 @@ public class RediSearchSuggestItemReader<K, V> extends AbstractItemCountingItemS
     @Override
     protected void doClose() {
         this.results = null;
+    }
+
+    public static RediSearchSuggestItemReaderBuilder builder() {
+        return new RediSearchSuggestItemReaderBuilder();
+    }
+
+    @Setter
+    @Accessors(fluent = true)
+    public static class RediSearchSuggestItemReaderBuilder {
+
+        private RedisOptions redisOptions;
+        private String key;
+        private String prefix;
+        private SuggetOptions suggetOptions;
+
+        public RediSearchSuggestItemReader<String, String> build() {
+            Assert.notNull(redisOptions, "Redis options are required");
+            return new RediSearchSuggestItemReader<>(LettuSearchHelper.connection(redisOptions), key, prefix, suggetOptions);
+        }
     }
 
 

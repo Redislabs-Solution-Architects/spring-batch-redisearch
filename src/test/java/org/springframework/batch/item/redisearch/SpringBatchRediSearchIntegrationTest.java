@@ -1,6 +1,6 @@
 package org.springframework.batch.item.redisearch;
 
-import com.redislabs.lettusearch.RediSearchClient;
+import com.redislabs.lettuce.helper.RedisOptions;
 import com.redislabs.lettusearch.RediSearchUtils;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import com.redislabs.lettusearch.index.IndexInfo;
@@ -9,18 +9,21 @@ import com.redislabs.lettusearch.search.Limit;
 import com.redislabs.lettusearch.search.SearchOptions;
 import com.redislabs.lettusearch.suggest.Suggestion;
 import com.redislabs.lettusearch.suggest.SuggetOptions;
-import io.lettuce.core.support.ConnectionPoolSupport;
-import org.apache.commons.pool2.impl.GenericObjectPool;
-import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
+import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.job.builder.SimpleJobBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.step.tasklet.TaskletStep;
+import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.step.redisearch.IndexCreateStep;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,12 +31,16 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 @SpringBootTest(classes = SpringBatchRediSearchTestApplication.class)
 @RunWith(SpringRunner.class)
 public class SpringBatchRediSearchIntegrationTest {
+
+    private final static int BEER_COUNT = 2410;
+    private final static int BEER_NAME_COUNT = 2304;
 
     @Autowired
     private JobLauncher jobLauncher;
@@ -42,7 +49,7 @@ public class SpringBatchRediSearchIntegrationTest {
     @Autowired
     private StepBuilderFactory stepBuilderFactory;
     @Autowired
-    private RediSearchClient client;
+    private RedisOptions redisOptions;
     @Autowired
     private StatefulRediSearchConnection<String, String> connection;
     @Autowired
@@ -50,47 +57,77 @@ public class SpringBatchRediSearchIntegrationTest {
     @Autowired
     private IndexCreateStep<String, String> indexCreateStep;
 
-    private Job documentWriteJob() {
-        GenericObjectPool<StatefulRediSearchConnection<String, String>> pool = ConnectionPoolSupport.createGenericObjectPool(client::connect, new GenericObjectPoolConfig<>());
-        RediSearchDocumentItemWriter<String, String> writer = RediSearchDocumentItemWriter.<String, String>builder().pool(pool).index(Utils.INDEX).build();
-        TaskletStep writeStep = stepBuilderFactory.get("documentWriteStep").<Map<String, String>, Document<String, String>>chunk(10).reader(fileReader).processor(new MapDocumentProcessor()).writer(writer).build();
-        return jobBuilderFactory.get("documentWriteJob").start(indexCreateStep).next(writeStep).build();
+    @BeforeEach
+    public void flush() {
+        connection.sync().flushall();
+    }
+
+    private <I, O> void run(String name, ItemReader<I> reader, ItemProcessor<I, O> processor, ItemWriter<O> writer, Step... steps) throws Exception {
+        TaskletStep taskletStep = stepBuilderFactory.get(name + "-step").<I, O>chunk(10).reader(reader).processor(processor).writer(writer).build();
+        Job readJob = job(name, steps(steps, taskletStep));
+        jobLauncher.run(readJob, new JobParameters());
+    }
+
+    private Step[] steps(Step[] steps, TaskletStep taskletStep) {
+        if (steps == null || steps.length == 0) {
+            return new Step[]{taskletStep};
+        }
+        Step[] allSteps = Arrays.copyOf(steps, steps.length + 1);
+        allSteps[allSteps.length - 1] = taskletStep;
+        return allSteps;
+    }
+
+    private Job job(String name, Step... steps) {
+        SimpleJobBuilder builder = jobBuilderFactory.get(name + "-job").start(steps[0]);
+        if (steps.length > 1) {
+            for (int index = 1; index < steps.length; index++) {
+                builder.next(steps[index]);
+            }
+        }
+        return builder.build();
+    }
+
+    private void writeDocuments(String name) throws Exception {
+        RediSearchItemWriter<String, String> writer = RediSearchItemWriter.builder().redisOptions(redisOptions).index(Utils.INDEX).build();
+        run(name, fileReader, new MapDocumentProcessor(), writer, indexCreateStep);
+    }
+
+    @Test
+    public void testDocumentWriter() throws Exception {
+        writeDocuments("test-document-writer");
+        IndexInfo info = RediSearchUtils.getInfo(connection.sync().ftInfo(Utils.INDEX));
+        Assertions.assertEquals(BEER_COUNT, info.getNumDocs());
     }
 
     @Test
     public void testDocumentReader() throws Exception {
-        connection.sync().flushall();
-        jobLauncher.run(documentWriteJob(), new JobParameters());
-        IndexInfo info = RediSearchUtils.getInfo(connection.sync().ftInfo(Utils.INDEX));
-        Assertions.assertEquals(2410, info.getNumDocs());
-        RediSearchDocumentItemReader<String, String> reader = RediSearchDocumentItemReader.<String,String>builder().connection(client.connect()).index(Utils.INDEX).query("*").searchOptions(SearchOptions.builder().limit(Limit.builder().num(3000).build()).build()).build();
+        writeDocuments("test-document-reader-init");
+        RediSearchItemReader<String, String> reader = RediSearchItemReader.builder().redisOptions(redisOptions).index(Utils.INDEX).query("*").searchOptions(SearchOptions.builder().limit(Limit.builder().num(3000).build()).build()).build();
         List<Document<String, String>> docs = new ArrayList<>();
-        TaskletStep readStep = stepBuilderFactory.get("readStep").<Document<String, String>, Document<String, String>>chunk(10).reader(reader).writer(docs::addAll).build();
-        Job readJob = jobBuilderFactory.get("readJob").start(readStep).build();
-        jobLauncher.run(readJob, new JobParameters());
-        Assertions.assertEquals(2410, docs.size());
+        run("test-document-reader", reader, null, (ItemWriter<Document<String, String>>) docs::addAll);
+        Assertions.assertEquals(BEER_COUNT, docs.size());
     }
 
-    private Job suggestWriteJob() {
-        GenericObjectPool<StatefulRediSearchConnection<String, String>> pool = ConnectionPoolSupport.createGenericObjectPool(client::connect, new GenericObjectPoolConfig<>());
-        RediSearchSuggestItemWriter<String, String> writer = RediSearchSuggestItemWriter.<String, String>builder().pool(pool).key(Utils.SUGGEST_KEY).build();
-        TaskletStep writeStep = stepBuilderFactory.get("suggestWriteStep").<Map<String, String>, Suggestion<String>>chunk(10).reader(fileReader).processor(new MapSuggestionProcessor()).writer(writer).build();
-        return jobBuilderFactory.get("documentWriteJob").start(writeStep).build();
+
+    private void writeSuggestions(String name) throws Exception {
+        RediSearchSuggestItemWriter<String, String> writer = RediSearchSuggestItemWriter.builder().redisOptions(redisOptions).key(Utils.SUGGEST_KEY).build();
+        run(name, fileReader, new MapSuggestionProcessor(), writer);
     }
 
     @Test
-    public void testSuggestReader() throws Exception {
-        connection.sync().flushall();
-        jobLauncher.run(suggestWriteJob(), new JobParameters());
+    public void testSuggestionWriter() throws Exception {
+        writeSuggestions("test-suggestion-writer");
         Long suglen = connection.sync().suglen(Utils.SUGGEST_KEY);
-        Assertions.assertEquals(2304, suglen);
-        RediSearchSuggestItemReader<String, String> reader = RediSearchSuggestItemReader.<String,String>builder().connection(client.connect()).key(Utils.SUGGEST_KEY).prefix("fren").suggetOptions(SuggetOptions.builder().fuzzy(true).build()).build();
-        List<Suggestion<String>> suggestions = new ArrayList<>();
-        TaskletStep readStep = stepBuilderFactory.get("suggestReadStep").<Suggestion<String>, Suggestion<String>>chunk(10).reader(reader).writer(suggestions::addAll).build();
-        Job readJob = jobBuilderFactory.get("readJob").start(readStep).build();
-        jobLauncher.run(readJob, new JobParameters());
-        Assertions.assertEquals(5, suggestions.size());
+        Assertions.assertEquals(BEER_NAME_COUNT, suglen);
+    }
 
+    @Test
+    public void testSuggestionReader() throws Exception {
+        writeSuggestions("test-suggestion-reader-init");
+        RediSearchSuggestItemReader<String, String> reader = RediSearchSuggestItemReader.builder().redisOptions(redisOptions).key(Utils.SUGGEST_KEY).prefix("fren").suggetOptions(SuggetOptions.builder().fuzzy(true).build()).build();
+        List<Suggestion<String>> suggestions = new ArrayList<>();
+        run("test-suggestion-reader", reader, null, (ItemWriter<Suggestion<String>>) suggestions::addAll);
+        Assertions.assertEquals(5, suggestions.size());
     }
 
 }

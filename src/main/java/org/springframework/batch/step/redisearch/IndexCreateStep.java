@@ -1,13 +1,16 @@
 package org.springframework.batch.step.redisearch;
 
+import com.redislabs.lettuce.helper.RedisOptions;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import com.redislabs.lettusearch.index.CreateOptions;
 import com.redislabs.lettusearch.index.Schema;
 import io.lettuce.core.RedisCommandExecutionException;
-import lombok.Builder;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.step.AbstractStep;
+import org.springframework.batch.item.redisearch.support.LettuSearchHelper;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 
@@ -20,7 +23,6 @@ public class IndexCreateStep<K, V> extends AbstractStep {
     private final CreateOptions createOptions;
     private final boolean ignoreErrors;
 
-    @Builder
     public IndexCreateStep(StatefulRediSearchConnection<K, V> connection, K index, Schema schema, CreateOptions createOptions, boolean ignoreErrors) {
         setName(ClassUtils.getShortName(getClass()));
         Assert.notNull(connection, "A RediSearch connection is required.");
@@ -43,6 +45,26 @@ public class IndexCreateStep<K, V> extends AbstractStep {
             } else {
                 throw e;
             }
+        }
+    }
+
+    public static IndexCreateStepBuilder builder() {
+        return new IndexCreateStepBuilder();
+    }
+
+    @Setter
+    @Accessors(fluent = true)
+    public static class IndexCreateStepBuilder {
+
+        private RedisOptions redisOptions;
+        private String index;
+        private Schema schema;
+        private CreateOptions createOptions;
+        private boolean ignoreErrors;
+
+        public IndexCreateStep<String, String> build() {
+            Assert.notNull(redisOptions, "Redis options are required");
+            return new IndexCreateStep<>(LettuSearchHelper.connection(redisOptions), index, schema, createOptions, ignoreErrors);
         }
     }
 

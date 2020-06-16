@@ -1,17 +1,19 @@
 package org.springframework.batch.item.redisearch;
 
+import com.redislabs.lettuce.helper.RedisOptions;
 import com.redislabs.lettusearch.RediSearchAsyncCommands;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import com.redislabs.lettusearch.suggest.Suggestion;
 import io.lettuce.core.RedisFuture;
-import io.lettuce.core.RedisURI;
-import lombok.Builder;
-import lombok.Data;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.redisearch.support.LettuSearchHelper;
 import org.springframework.util.Assert;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -23,16 +25,19 @@ public class RediSearchSuggestItemWriter<K, V> implements ItemWriter<Suggestion<
 
     private final GenericObjectPool<StatefulRediSearchConnection<K, V>> pool;
     private final K key;
-    private final Options options;
+    private final long commandTimeout;
+    private final boolean delete;
+    private final boolean increment;
 
-    @Builder
-    public RediSearchSuggestItemWriter(GenericObjectPool<StatefulRediSearchConnection<K, V>> pool, K key, Options options) {
+    public RediSearchSuggestItemWriter(GenericObjectPool<StatefulRediSearchConnection<K, V>> pool, K key, Duration commandTimeout, boolean delete, boolean increment) {
         Assert.notNull(pool, "A RediSearch connection pool is required.");
         Assert.notNull(key, "A key is required.");
-        Assert.notNull(options, "Options are required.");
+        Assert.notNull(commandTimeout, "Command timeout is required.");
         this.pool = pool;
         this.key = key;
-        this.options = options;
+        this.commandTimeout = commandTimeout.getSeconds();
+        this.delete = delete;
+        this.increment = increment;
     }
 
     @Override
@@ -41,7 +46,7 @@ public class RediSearchSuggestItemWriter<K, V> implements ItemWriter<Suggestion<
         try {
             RediSearchAsyncCommands<K, V> commands = connection.async();
             commands.setAutoFlushCommands(false);
-            if (options.isDelete()) {
+            if (delete) {
                 List<RedisFuture<Boolean>> futures = new ArrayList<>();
                 for (Suggestion<V> item : items) {
                     futures.add(commands.sugdel(key, item.getString()));
@@ -53,7 +58,7 @@ public class RediSearchSuggestItemWriter<K, V> implements ItemWriter<Suggestion<
             } else {
                 List<RedisFuture<Long>> futures = new ArrayList<>();
                 for (Suggestion<V> item : items) {
-                    futures.add(commands.sugadd(key, item, options.isIncrement()));
+                    futures.add(commands.sugadd(key, item, increment));
                 }
                 commands.flushCommands();
                 for (RedisFuture<Long> future : futures) {
@@ -67,7 +72,7 @@ public class RediSearchSuggestItemWriter<K, V> implements ItemWriter<Suggestion<
 
     private void get(RedisFuture<?> future) throws InterruptedException {
         try {
-            future.get(options.getCommandTimeout(), TimeUnit.SECONDS);
+            future.get(commandTimeout, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             log.error("Could not execute command", e);
         } catch (TimeoutException e) {
@@ -75,19 +80,23 @@ public class RediSearchSuggestItemWriter<K, V> implements ItemWriter<Suggestion<
         }
     }
 
-    @Data
-    @Builder
-    public static class Options {
-        private boolean delete;
-        private boolean increment;
-        @Builder.Default
-        private long commandTimeout = RedisURI.DEFAULT_TIMEOUT;
+    public static RediSearchSuggestItemWriterBuilder builder() {
+        return new RediSearchSuggestItemWriterBuilder();
     }
 
-    public static class RediSearchSuggestItemWriterBuilder<K, V> {
+    @Setter
+    @Accessors(fluent = true)
+    public static class RediSearchSuggestItemWriterBuilder {
 
-        private Options options = Options.builder().build();
+        private RedisOptions redisOptions;
+        private String key;
+        private boolean delete;
+        private boolean increment;
 
+        public RediSearchSuggestItemWriter<String, String> build() {
+            Assert.notNull(redisOptions, "Redis options are required");
+            return new RediSearchSuggestItemWriter<>(LettuSearchHelper.connectionPool(redisOptions), key, redisOptions.getTimeout(), delete, increment);
+        }
     }
 
 

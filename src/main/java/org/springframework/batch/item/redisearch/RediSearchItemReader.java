@@ -1,16 +1,19 @@
 package org.springframework.batch.item.redisearch;
 
+import com.redislabs.lettuce.helper.RedisOptions;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import com.redislabs.lettusearch.search.Document;
 import com.redislabs.lettusearch.search.SearchOptions;
-import lombok.Builder;
+import lombok.Setter;
+import lombok.experimental.Accessors;
+import org.springframework.batch.item.redisearch.support.LettuSearchHelper;
 import org.springframework.batch.item.support.AbstractItemCountingItemStreamItemReader;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 
 import java.util.Iterator;
 
-public class RediSearchDocumentItemReader<K, V> extends AbstractItemCountingItemStreamItemReader<Document<K, V>> {
+public class RediSearchItemReader<K, V> extends AbstractItemCountingItemStreamItemReader<Document<K, V>> {
 
     private final StatefulRediSearchConnection<K, V> connection;
     private final K index;
@@ -19,8 +22,7 @@ public class RediSearchDocumentItemReader<K, V> extends AbstractItemCountingItem
 
     private Iterator<Document<K, V>> results;
 
-    @Builder
-    public RediSearchDocumentItemReader(StatefulRediSearchConnection<K, V> connection, K index, V query, SearchOptions searchOptions) {
+    public RediSearchItemReader(StatefulRediSearchConnection<K, V> connection, K index, V query, SearchOptions searchOptions) {
         setName(ClassUtils.getShortName(getClass()));
         Assert.notNull(connection, "A RediSearch connection is required.");
         Assert.notNull(index, "An index name is required.");
@@ -47,6 +49,26 @@ public class RediSearchDocumentItemReader<K, V> extends AbstractItemCountingItem
     @Override
     protected void doClose() {
         this.results = null;
+    }
+
+
+    public static RediSearchItemReaderBuilder builder() {
+        return new RediSearchItemReaderBuilder();
+    }
+
+    @Setter
+    @Accessors(fluent = true)
+    public static class RediSearchItemReaderBuilder {
+
+        private RedisOptions redisOptions;
+        private String index;
+        private String query;
+        private SearchOptions searchOptions;
+
+        public RediSearchItemReader<String, String> build() {
+            Assert.notNull(redisOptions, "Redis options are required");
+            return new RediSearchItemReader<>(LettuSearchHelper.connection(redisOptions), index, query, searchOptions);
+        }
     }
 
 }

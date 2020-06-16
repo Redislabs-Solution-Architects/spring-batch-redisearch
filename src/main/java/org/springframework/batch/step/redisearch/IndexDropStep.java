@@ -1,12 +1,15 @@
 package org.springframework.batch.step.redisearch;
 
+import com.redislabs.lettuce.helper.RedisOptions;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import com.redislabs.lettusearch.index.DropOptions;
 import io.lettuce.core.RedisCommandExecutionException;
-import lombok.Builder;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.step.AbstractStep;
+import org.springframework.batch.item.redisearch.support.LettuSearchHelper;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 
@@ -18,7 +21,6 @@ public class IndexDropStep<K, V> extends AbstractStep {
     private final DropOptions dropOptions;
     private final boolean ignoreErrors;
 
-    @Builder
     public IndexDropStep(StatefulRediSearchConnection<K, V> connection, K index, DropOptions dropOptions, boolean ignoreErrors) {
         setName(ClassUtils.getShortName(getClass()));
         Assert.notNull(connection, "A RediSearch connection is required.");
@@ -39,6 +41,26 @@ public class IndexDropStep<K, V> extends AbstractStep {
             } else {
                 throw e;
             }
+        }
+    }
+
+
+    public static IndexDropStepBuilder builder() {
+        return new IndexDropStepBuilder();
+    }
+
+    @Setter
+    @Accessors(fluent = true)
+    public static class IndexDropStepBuilder {
+
+        private RedisOptions redisOptions;
+        private String index;
+        private DropOptions dropOptions;
+        private boolean ignoreErrors;
+
+        public IndexDropStep<String, String> build() {
+            Assert.notNull(redisOptions, "Redis Options are required");
+            return new IndexDropStep<>(LettuSearchHelper.connection(redisOptions), index, dropOptions, ignoreErrors);
         }
     }
 

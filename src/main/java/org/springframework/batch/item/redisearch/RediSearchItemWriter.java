@@ -1,18 +1,20 @@
 package org.springframework.batch.item.redisearch;
 
+import com.redislabs.lettuce.helper.RedisOptions;
 import com.redislabs.lettusearch.RediSearchAsyncCommands;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import com.redislabs.lettusearch.search.AddOptions;
 import com.redislabs.lettusearch.search.Document;
 import io.lettuce.core.RedisFuture;
-import io.lettuce.core.RedisURI;
-import lombok.Builder;
-import lombok.Data;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.pool2.impl.GenericObjectPool;
+import org.springframework.batch.item.redisearch.support.LettuSearchHelper;
 import org.springframework.batch.item.support.AbstractItemStreamItemWriter;
 import org.springframework.util.Assert;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -20,20 +22,25 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Slf4j
-public class RediSearchDocumentItemWriter<K, V> extends AbstractItemStreamItemWriter<Document<K, V>> {
+public class RediSearchItemWriter<K, V> extends AbstractItemStreamItemWriter<Document<K, V>> {
 
     private final GenericObjectPool<StatefulRediSearchConnection<K, V>> pool;
     private final K index;
-    private final Options options;
+    private final long commandTimeout;
+    private final boolean delete;
+    private final boolean deleteDocument;
+    private final AddOptions addOptions;
 
-    @Builder
-    public RediSearchDocumentItemWriter(GenericObjectPool<StatefulRediSearchConnection<K, V>> pool, K index, Options options) {
+    public RediSearchItemWriter(GenericObjectPool<StatefulRediSearchConnection<K, V>> pool, K index, Duration commandTimeout, boolean delete, boolean deleteDocument, AddOptions addOptions) {
         Assert.notNull(pool, "A RediSearch connection pool is required.");
         Assert.notNull(index, "An index name is required.");
-        Assert.notNull(options, "Options are required.");
+        Assert.notNull(commandTimeout, "Command timeout is required.");
         this.pool = pool;
         this.index = index;
-        this.options = options;
+        this.commandTimeout = commandTimeout.getSeconds();
+        this.delete = delete;
+        this.deleteDocument = deleteDocument;
+        this.addOptions = addOptions;
     }
 
     @Override
@@ -42,10 +49,10 @@ public class RediSearchDocumentItemWriter<K, V> extends AbstractItemStreamItemWr
         try {
             RediSearchAsyncCommands<K, V> commands = connection.async();
             commands.setAutoFlushCommands(false);
-            if (options.isDelete()) {
+            if (delete) {
                 List<RedisFuture<Boolean>> futures = new ArrayList<>();
                 for (Document<K, V> item : items) {
-                    futures.add(commands.del(index, item.getId(), options.isDeleteDocument()));
+                    futures.add(commands.del(index, item.getId(), deleteDocument));
                 }
                 commands.flushCommands();
                 for (RedisFuture<Boolean> future : futures) {
@@ -54,7 +61,7 @@ public class RediSearchDocumentItemWriter<K, V> extends AbstractItemStreamItemWr
             } else {
                 List<RedisFuture<String>> futures = new ArrayList<>();
                 for (Document<K, V> item : items) {
-                    futures.add(commands.add(index, item, options.getAddOptions()));
+                    futures.add(commands.add(index, item, addOptions));
                 }
                 commands.flushCommands();
                 for (RedisFuture<String> future : futures) {
@@ -68,7 +75,7 @@ public class RediSearchDocumentItemWriter<K, V> extends AbstractItemStreamItemWr
 
     private void get(RedisFuture<?> future) throws InterruptedException {
         try {
-            future.get(options.getCommandTimeout(), TimeUnit.SECONDS);
+            future.get(commandTimeout, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             log.error("Could not execute command", e);
         } catch (TimeoutException e) {
@@ -76,21 +83,25 @@ public class RediSearchDocumentItemWriter<K, V> extends AbstractItemStreamItemWr
         }
     }
 
-    @Data
-    @Builder
-    public static class Options {
+    public static RediSearchItemWriterBuilder builder() {
+        return new RediSearchItemWriterBuilder();
+    }
+
+    @Setter
+    @Accessors(fluent = true)
+    public static class RediSearchItemWriterBuilder {
+
+        private RedisOptions redisOptions;
+        private String index;
         private boolean delete;
         private boolean deleteDocument;
-        @Builder.Default
-        private AddOptions addOptions = AddOptions.builder().build();
-        @Builder.Default
-        private long commandTimeout = RedisURI.DEFAULT_TIMEOUT;
+        private AddOptions addOptions;
+
+        public RediSearchItemWriter<String, String> build() {
+            Assert.notNull(redisOptions, "Redis options are required");
+            return new RediSearchItemWriter<>(LettuSearchHelper.connectionPool(redisOptions), index, redisOptions.getTimeout(), delete, deleteDocument, addOptions);
+        }
     }
 
-    public static class RediSearchDocumentItemWriterBuilder<K, V> {
-
-        private Options options = Options.builder().build();
-
-    }
 
 }
