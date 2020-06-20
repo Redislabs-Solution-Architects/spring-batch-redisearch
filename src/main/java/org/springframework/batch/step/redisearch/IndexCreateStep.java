@@ -1,6 +1,5 @@
 package org.springframework.batch.step.redisearch;
 
-import com.redislabs.lettuce.helper.RedisOptions;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import com.redislabs.lettusearch.index.CreateOptions;
 import com.redislabs.lettusearch.index.Schema;
@@ -10,7 +9,7 @@ import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.step.AbstractStep;
-import org.springframework.batch.item.redisearch.support.LettuSearchHelper;
+import org.springframework.batch.item.redisearch.support.RediSearchConnectionBuilder;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 
@@ -54,17 +53,15 @@ public class IndexCreateStep<K, V> extends AbstractStep {
 
     @Setter
     @Accessors(fluent = true)
-    public static class IndexCreateStepBuilder {
+    public static class IndexCreateStepBuilder extends RediSearchConnectionBuilder<IndexCreateStepBuilder> {
 
-        private RedisOptions redisOptions;
         private String index;
         private Schema schema;
         private CreateOptions createOptions;
         private boolean ignoreErrors;
 
         public IndexCreateStep<String, String> build() {
-            Assert.notNull(redisOptions, "Redis options are required");
-            return new IndexCreateStep<>(LettuSearchHelper.connection(redisOptions), index, schema, createOptions, ignoreErrors);
+            return new IndexCreateStep<>(connection(), index, schema, createOptions, ignoreErrors);
         }
     }
 

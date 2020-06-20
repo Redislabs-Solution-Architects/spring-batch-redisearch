@@ -1,6 +1,5 @@
 package org.springframework.batch.item.redisearch;
 
-import com.redislabs.lettuce.helper.RedisOptions;
 import com.redislabs.lettusearch.RediSearchAsyncCommands;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import com.redislabs.lettusearch.suggest.Suggestion;
@@ -10,7 +9,7 @@ import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.redisearch.support.LettuSearchHelper;
+import org.springframework.batch.item.redisearch.support.RediSearchConnectionBuilder;
 import org.springframework.util.Assert;
 
 import java.time.Duration;
@@ -86,16 +85,14 @@ public class RediSearchSuggestItemWriter<K, V> implements ItemWriter<Suggestion<
 
     @Setter
     @Accessors(fluent = true)
-    public static class RediSearchSuggestItemWriterBuilder {
+    public static class RediSearchSuggestItemWriterBuilder extends RediSearchConnectionBuilder<RediSearchSuggestItemWriterBuilder> {
 
-        private RedisOptions redisOptions;
         private String key;
         private boolean delete;
         private boolean increment;
 
         public RediSearchSuggestItemWriter<String, String> build() {
-            Assert.notNull(redisOptions, "Redis options are required");
-            return new RediSearchSuggestItemWriter<>(LettuSearchHelper.connectionPool(redisOptions), key, redisOptions.getTimeout(), delete, increment);
+            return new RediSearchSuggestItemWriter<>(pool(), key, getTimeout(), delete, increment);
         }
     }
 

@@ -1,6 +1,5 @@
 package org.springframework.batch.item.redisearch;
 
-import com.redislabs.lettuce.helper.RedisOptions;
 import com.redislabs.lettusearch.RediSearchClient;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import io.lettuce.core.RedisURI;
@@ -35,11 +34,6 @@ public class SpringBatchRediSearchTestApplication {
     }
 
     @Bean
-    RedisOptions redisOptions(RedisURI redisURI) {
-        return RedisOptions.builder().redisURI(redisURI).build();
-    }
-
-    @Bean
     StatefulRediSearchConnection<String, String> connection(RedisURI redisURI) {
         return RediSearchClient.create(redisURI).connect();
     }
@@ -60,8 +54,8 @@ public class SpringBatchRediSearchTestApplication {
     }
 
     @Bean
-    IndexCreateStep indexCreateStep(JobRepository jobRepository, StatefulRediSearchConnection<String, String> connection) {
-        IndexCreateStep step = IndexCreateStep.<String, String>builder().redisOptions(redisOptions(redisURI())).index(Utils.INDEX).schema(Utils.SCHEMA).build();
+    IndexCreateStep<String, String> indexCreateStep(JobRepository jobRepository) {
+        IndexCreateStep<String, String> step = IndexCreateStep.builder().redisURI(redisURI()).index(Utils.INDEX).schema(Utils.SCHEMA).build();
         step.setJobRepository(jobRepository);
         return step;
     }

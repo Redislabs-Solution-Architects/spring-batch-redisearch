@@ -1,13 +1,12 @@
 package org.springframework.batch.item.redisearch;
 
-import com.redislabs.lettuce.helper.RedisOptions;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import com.redislabs.lettusearch.aggregate.AggregateOptions;
 import com.redislabs.lettusearch.aggregate.AggregateWithCursorResults;
 import com.redislabs.lettusearch.aggregate.Cursor;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import org.springframework.batch.item.redisearch.support.LettuSearchHelper;
+import org.springframework.batch.item.redisearch.support.RediSearchConnectionBuilder;
 import org.springframework.batch.item.support.AbstractItemCountingItemStreamItemReader;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
@@ -74,17 +73,15 @@ public class RediSearchAggregateCursorItemReader<K, V> extends AbstractItemCount
 
     @Setter
     @Accessors(fluent = true)
-    public static class RediSearchAggregateCursorItemReaderBuilder {
+    public static class RediSearchAggregateCursorItemReaderBuilder extends RediSearchConnectionBuilder<RediSearchAggregateCursorItemReaderBuilder> {
 
-        private RedisOptions redisOptions;
         private String index;
         private String query;
         private AggregateOptions aggregateOptions;
         private Cursor cursor = Cursor.builder().build();
 
         public RediSearchAggregateCursorItemReader<String, String> build() {
-            Assert.notNull(redisOptions, "Redis options are required");
-            return new RediSearchAggregateCursorItemReader<>(LettuSearchHelper.connection(redisOptions), index, query, aggregateOptions, cursor);
+            return new RediSearchAggregateCursorItemReader<>(connection(), index, query, aggregateOptions, cursor);
         }
     }
 

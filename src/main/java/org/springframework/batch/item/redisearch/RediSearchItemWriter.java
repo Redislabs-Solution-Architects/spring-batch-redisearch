@@ -1,6 +1,5 @@
 package org.springframework.batch.item.redisearch;
 
-import com.redislabs.lettuce.helper.RedisOptions;
 import com.redislabs.lettusearch.RediSearchAsyncCommands;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import com.redislabs.lettusearch.search.AddOptions;
@@ -10,7 +9,7 @@ import lombok.Setter;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.pool2.impl.GenericObjectPool;
-import org.springframework.batch.item.redisearch.support.LettuSearchHelper;
+import org.springframework.batch.item.redisearch.support.RediSearchConnectionBuilder;
 import org.springframework.batch.item.support.AbstractItemStreamItemWriter;
 import org.springframework.util.Assert;
 
@@ -89,17 +88,15 @@ public class RediSearchItemWriter<K, V> extends AbstractItemStreamItemWriter<Doc
 
     @Setter
     @Accessors(fluent = true)
-    public static class RediSearchItemWriterBuilder {
+    public static class RediSearchItemWriterBuilder extends RediSearchConnectionBuilder<RediSearchItemWriterBuilder> {
 
-        private RedisOptions redisOptions;
         private String index;
         private boolean delete;
         private boolean deleteDocument;
         private AddOptions addOptions;
 
         public RediSearchItemWriter<String, String> build() {
-            Assert.notNull(redisOptions, "Redis options are required");
-            return new RediSearchItemWriter<>(LettuSearchHelper.connectionPool(redisOptions), index, redisOptions.getTimeout(), delete, deleteDocument, addOptions);
+            return new RediSearchItemWriter<>(pool(), index, getTimeout(), delete, deleteDocument, addOptions);
         }
     }
 

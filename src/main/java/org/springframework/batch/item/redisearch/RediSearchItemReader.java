@@ -1,12 +1,11 @@
 package org.springframework.batch.item.redisearch;
 
-import com.redislabs.lettuce.helper.RedisOptions;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import com.redislabs.lettusearch.search.Document;
 import com.redislabs.lettusearch.search.SearchOptions;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import org.springframework.batch.item.redisearch.support.LettuSearchHelper;
+import org.springframework.batch.item.redisearch.support.RediSearchConnectionBuilder;
 import org.springframework.batch.item.support.AbstractItemCountingItemStreamItemReader;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
@@ -58,16 +57,14 @@ public class RediSearchItemReader<K, V> extends AbstractItemCountingItemStreamIt
 
     @Setter
     @Accessors(fluent = true)
-    public static class RediSearchItemReaderBuilder {
+    public static class RediSearchItemReaderBuilder extends RediSearchConnectionBuilder<RediSearchItemReaderBuilder> {
 
-        private RedisOptions redisOptions;
         private String index;
         private String query;
         private SearchOptions searchOptions;
 
         public RediSearchItemReader<String, String> build() {
-            Assert.notNull(redisOptions, "Redis options are required");
-            return new RediSearchItemReader<>(LettuSearchHelper.connection(redisOptions), index, query, searchOptions);
+            return new RediSearchItemReader<>(connection(), index, query, searchOptions);
         }
     }
 

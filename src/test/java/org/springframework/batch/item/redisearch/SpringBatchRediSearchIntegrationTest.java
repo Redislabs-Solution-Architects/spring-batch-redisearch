@@ -1,6 +1,5 @@
 package org.springframework.batch.item.redisearch;
 
-import com.redislabs.lettuce.helper.RedisOptions;
 import com.redislabs.lettusearch.RediSearchUtils;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import com.redislabs.lettusearch.index.IndexInfo;
@@ -9,6 +8,7 @@ import com.redislabs.lettusearch.search.Limit;
 import com.redislabs.lettusearch.search.SearchOptions;
 import com.redislabs.lettusearch.suggest.Suggestion;
 import com.redislabs.lettusearch.suggest.SuggetOptions;
+import io.lettuce.core.RedisURI;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,7 +49,7 @@ public class SpringBatchRediSearchIntegrationTest {
     @Autowired
     private StepBuilderFactory stepBuilderFactory;
     @Autowired
-    private RedisOptions redisOptions;
+    private RedisURI redisURI;
     @Autowired
     private StatefulRediSearchConnection<String, String> connection;
     @Autowired
@@ -88,7 +88,7 @@ public class SpringBatchRediSearchIntegrationTest {
     }
 
     private void writeDocuments(String name) throws Exception {
-        RediSearchItemWriter<String, String> writer = RediSearchItemWriter.builder().redisOptions(redisOptions).index(Utils.INDEX).build();
+        RediSearchItemWriter<String, String> writer = RediSearchItemWriter.builder().redisURI(redisURI).index(Utils.INDEX).build();
         run(name, fileReader, new MapDocumentProcessor(), writer, indexCreateStep);
     }
 
@@ -102,7 +102,7 @@ public class SpringBatchRediSearchIntegrationTest {
     @Test
     public void testDocumentReader() throws Exception {
         writeDocuments("test-document-reader-init");
-        RediSearchItemReader<String, String> reader = RediSearchItemReader.builder().redisOptions(redisOptions).index(Utils.INDEX).query("*").searchOptions(SearchOptions.builder().limit(Limit.builder().num(3000).build()).build()).build();
+        RediSearchItemReader<String, String> reader = RediSearchItemReader.builder().redisURI(redisURI).index(Utils.INDEX).query("*").searchOptions(SearchOptions.builder().limit(Limit.builder().num(3000).build()).build()).build();
         List<Document<String, String>> docs = new ArrayList<>();
         run("test-document-reader", reader, null, (ItemWriter<Document<String, String>>) docs::addAll);
         Assertions.assertEquals(BEER_COUNT, docs.size());
@@ -110,7 +110,7 @@ public class SpringBatchRediSearchIntegrationTest {
 
 
     private void writeSuggestions(String name) throws Exception {
-        RediSearchSuggestItemWriter<String, String> writer = RediSearchSuggestItemWriter.builder().redisOptions(redisOptions).key(Utils.SUGGEST_KEY).build();
+        RediSearchSuggestItemWriter<String, String> writer = RediSearchSuggestItemWriter.builder().redisURI(redisURI).key(Utils.SUGGEST_KEY).build();
         run(name, fileReader, new MapSuggestionProcessor(), writer);
     }
 
@@ -124,7 +124,7 @@ public class SpringBatchRediSearchIntegrationTest {
     @Test
     public void testSuggestionReader() throws Exception {
         writeSuggestions("test-suggestion-reader-init");
-        RediSearchSuggestItemReader<String, String> reader = RediSearchSuggestItemReader.builder().redisOptions(redisOptions).key(Utils.SUGGEST_KEY).prefix("fren").suggetOptions(SuggetOptions.builder().fuzzy(true).build()).build();
+        RediSearchSuggestItemReader<String, String> reader = RediSearchSuggestItemReader.builder().redisURI(redisURI).key(Utils.SUGGEST_KEY).prefix("fren").suggetOptions(SuggetOptions.builder().fuzzy(true).build()).build();
         List<Suggestion<String>> suggestions = new ArrayList<>();
         run("test-suggestion-reader", reader, null, (ItemWriter<Suggestion<String>>) suggestions::addAll);
         Assertions.assertEquals(5, suggestions.size());
