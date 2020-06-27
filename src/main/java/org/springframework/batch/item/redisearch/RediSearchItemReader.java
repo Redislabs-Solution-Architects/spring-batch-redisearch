@@ -3,6 +3,7 @@ package org.springframework.batch.item.redisearch;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import com.redislabs.lettusearch.search.Document;
 import com.redislabs.lettusearch.search.SearchOptions;
+import com.redislabs.lettusearch.search.SearchResults;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 import org.springframework.batch.item.redisearch.support.RediSearchConnectionBuilder;
@@ -18,10 +19,11 @@ public class RediSearchItemReader<K, V> extends AbstractItemCountingItemStreamIt
     private final K index;
     private final V query;
     private final SearchOptions searchOptions;
+    private final Object[] args;
 
     private Iterator<Document<K, V>> results;
 
-    public RediSearchItemReader(StatefulRediSearchConnection<K, V> connection, K index, V query, SearchOptions searchOptions) {
+    public RediSearchItemReader(StatefulRediSearchConnection<K, V> connection, K index, V query, SearchOptions searchOptions, Object[] args) {
         setName(ClassUtils.getShortName(getClass()));
         Assert.notNull(connection, "A RediSearch connection is required.");
         Assert.notNull(index, "An index name is required.");
@@ -30,11 +32,19 @@ public class RediSearchItemReader<K, V> extends AbstractItemCountingItemStreamIt
         this.index = index;
         this.query = query;
         this.searchOptions = searchOptions;
+        this.args = args;
     }
 
     @Override
     protected void doOpen() {
-        this.results = connection.sync().search(index, query, searchOptions).iterator();
+        this.results = search().iterator();
+    }
+
+    private SearchResults<K, V> search() {
+        if (args == null) {
+            return connection.sync().search(index, query, searchOptions);
+        }
+        return connection.sync().search(index, query, args);
     }
 
     @Override
@@ -62,9 +72,10 @@ public class RediSearchItemReader<K, V> extends AbstractItemCountingItemStreamIt
         private String index;
         private String query;
         private SearchOptions searchOptions;
+        private Object[] args;
 
         public RediSearchItemReader<String, String> build() {
-            return new RediSearchItemReader<>(connection(), index, query, searchOptions);
+            return new RediSearchItemReader<>(connection(), index, query, searchOptions, args);
         }
     }
 

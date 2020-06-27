@@ -2,6 +2,7 @@ package org.springframework.batch.item.redisearch;
 
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import com.redislabs.lettusearch.aggregate.AggregateOptions;
+import com.redislabs.lettusearch.aggregate.AggregateResults;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 import org.springframework.batch.item.redisearch.support.RediSearchConnectionBuilder;
@@ -18,10 +19,11 @@ public class RediSearchAggregateItemReader<K, V> extends AbstractItemCountingIte
     private final K index;
     private final V query;
     private final AggregateOptions aggregateOptions;
+    private final Object[] args;
 
     private Iterator<Map<K, V>> results;
 
-    public RediSearchAggregateItemReader(StatefulRediSearchConnection<K, V> connection, K index, V query, AggregateOptions aggregateOptions) {
+    public RediSearchAggregateItemReader(StatefulRediSearchConnection<K, V> connection, K index, V query, AggregateOptions aggregateOptions, Object[] args) {
         setName(ClassUtils.getShortName(getClass()));
         Assert.notNull(connection, "A RediSearch connection is required.");
         Assert.notNull(index, "An index name is required.");
@@ -30,11 +32,19 @@ public class RediSearchAggregateItemReader<K, V> extends AbstractItemCountingIte
         this.index = index;
         this.query = query;
         this.aggregateOptions = aggregateOptions;
+        this.args = args;
     }
 
     @Override
     protected void doOpen() {
-        this.results = connection.sync().aggregate(index, query, aggregateOptions).iterator();
+        this.results = aggregate().iterator();
+    }
+
+    private AggregateResults<K, V> aggregate() {
+        if (args == null) {
+            return connection.sync().aggregate(index, query, aggregateOptions);
+        }
+        return connection.sync().aggregate(index, query, args);
     }
 
     @Override
@@ -61,9 +71,10 @@ public class RediSearchAggregateItemReader<K, V> extends AbstractItemCountingIte
         private String index;
         private String query;
         private AggregateOptions aggregateOptions;
+        private Object[] args;
 
         public RediSearchAggregateItemReader<String, String> build() {
-            return new RediSearchAggregateItemReader<>(connection(), index, query, aggregateOptions);
+            return new RediSearchAggregateItemReader<>(connection(), index, query, aggregateOptions, args);
         }
     }
 
