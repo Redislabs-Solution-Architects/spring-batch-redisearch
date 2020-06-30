@@ -1,5 +1,6 @@
 package org.springframework.batch.item.redisearch;
 
+import com.redislabs.lettusearch.RediSearchClient;
 import com.redislabs.lettusearch.RediSearchUtils;
 import com.redislabs.lettusearch.StatefulRediSearchConnection;
 import com.redislabs.lettusearch.index.IndexInfo;
@@ -10,6 +11,7 @@ import com.redislabs.lettusearch.suggest.Suggestion;
 import com.redislabs.lettusearch.suggest.SuggetOptions;
 import io.lettuce.core.RedisURI;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
@@ -20,6 +22,7 @@ import org.springframework.batch.core.configuration.annotation.JobBuilderFactory
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.job.builder.SimpleJobBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.tasklet.TaskletStep;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
@@ -28,19 +31,25 @@ import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.step.redisearch.IndexCreateStep;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.testcontainers.containers.GenericContainer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-@SpringBootTest(classes = SpringBatchRediSearchTestApplication.class)
+@SpringBootTest(classes = TestApplication.class)
 @RunWith(SpringRunner.class)
 public class SpringBatchRediSearchIntegrationTest {
 
     private final static int BEER_COUNT = 2410;
     private final static int BEER_NAME_COUNT = 2304;
+
+    private static GenericContainer redis;
+    private static RedisURI redisURI;
+    private static RediSearchClient redisClient;
 
     @Autowired
     private JobLauncher jobLauncher;
@@ -49,17 +58,30 @@ public class SpringBatchRediSearchIntegrationTest {
     @Autowired
     private StepBuilderFactory stepBuilderFactory;
     @Autowired
-    private RedisURI redisURI;
-    @Autowired
-    private StatefulRediSearchConnection<String, String> connection;
-    @Autowired
     private FlatFileItemReader<Map<String, String>> fileReader;
     @Autowired
-    private IndexCreateStep<String, String> indexCreateStep;
+    private JobRepository jobRepository;
+
+    @BeforeAll
+    public static void setup() {
+        redis = new GenericContainer("redislabs/redisearch:latest").withExposedPorts(6379);
+        redis.start();
+        redisURI = RedisURI.create(redis.getHost(), redis.getFirstMappedPort());
+        redisClient = RediSearchClient.create(redisURI);
+    }
 
     @BeforeEach
     public void flush() {
+        StatefulRediSearchConnection<String, String> connection = redisClient.connect();
         connection.sync().flushall();
+        connection.close();
+    }
+
+
+    private IndexCreateStep<String, String> indexCreateStep() {
+        IndexCreateStep<String, String> step = IndexCreateStep.builder().redisURI(redisURI).index(Utils.INDEX).schema(Utils.SCHEMA).build();
+        step.setJobRepository(jobRepository);
+        return step;
     }
 
     private <I, O> void run(String name, ItemReader<I> reader, ItemProcessor<I, O> processor, ItemWriter<O> writer, Step... steps) throws Exception {
@@ -89,13 +111,13 @@ public class SpringBatchRediSearchIntegrationTest {
 
     private void writeDocuments(String name) throws Exception {
         RediSearchItemWriter<String, String> writer = RediSearchItemWriter.builder().redisURI(redisURI).index(Utils.INDEX).build();
-        run(name, fileReader, new MapDocumentProcessor(), writer, indexCreateStep);
+        run(name, fileReader, new MapDocumentProcessor(), writer, indexCreateStep());
     }
 
     @Test
     public void testDocumentWriter() throws Exception {
         writeDocuments("test-document-writer");
-        IndexInfo info = RediSearchUtils.getInfo(connection.sync().ftInfo(Utils.INDEX));
+        IndexInfo info = RediSearchUtils.getInfo(redisClient.connect().sync().ftInfo(Utils.INDEX));
         Assertions.assertEquals(BEER_COUNT, info.getNumDocs());
     }
 
@@ -117,7 +139,7 @@ public class SpringBatchRediSearchIntegrationTest {
     @Test
     public void testSuggestionWriter() throws Exception {
         writeSuggestions("test-suggestion-writer");
-        Long suglen = connection.sync().suglen(Utils.SUGGEST_KEY);
+        Long suglen = redisClient.connect().sync().suglen(Utils.SUGGEST_KEY);
         Assertions.assertEquals(BEER_NAME_COUNT, suglen);
     }
 
