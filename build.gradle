@@ -32,7 +32,7 @@ jar {
 dependencies {
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
-	api 'com.redislabs:lettusearch:2.3.1'
+	api 'com.redislabs:lettusearch:2.3.2'
     api 'org.apache.commons:commons-pool2'
 	implementation 'org.springframework.boot:spring-boot-starter-batch'
 	testImplementation('org.springframework.boot:spring-boot-starter-test') {
