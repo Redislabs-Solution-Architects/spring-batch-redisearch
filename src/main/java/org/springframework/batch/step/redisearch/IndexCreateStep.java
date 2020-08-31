@@ -16,53 +16,54 @@ import org.springframework.util.ClassUtils;
 @Slf4j
 public class IndexCreateStep<K, V> extends AbstractStep {
 
-    private final StatefulRediSearchConnection<K, V> connection;
-    private final K index;
-    private final Schema schema;
-    private final CreateOptions createOptions;
-    private final boolean ignoreErrors;
+	private final StatefulRediSearchConnection<K, V> connection;
+	private final K index;
+	private final Schema<K> schema;
+	private final CreateOptions<K, V> createOptions;
+	private final boolean ignoreErrors;
 
-    public IndexCreateStep(StatefulRediSearchConnection<K, V> connection, K index, Schema schema, CreateOptions createOptions, boolean ignoreErrors) {
-        setName(ClassUtils.getShortName(getClass()));
-        Assert.notNull(connection, "A RediSearch connection is required.");
-        Assert.notNull(index, "An index name is required.");
-        Assert.notNull(schema, "A schema is required.");
-        this.connection = connection;
-        this.index = index;
-        this.schema = schema;
-        this.createOptions = createOptions;
-        this.ignoreErrors = ignoreErrors;
-    }
+	public IndexCreateStep(StatefulRediSearchConnection<K, V> connection, K index, Schema<K> schema,
+			CreateOptions<K, V> createOptions, boolean ignoreErrors) {
+		setName(ClassUtils.getShortName(getClass()));
+		Assert.notNull(connection, "A RediSearch connection is required.");
+		Assert.notNull(index, "An index name is required.");
+		Assert.notNull(schema, "A schema is required.");
+		this.connection = connection;
+		this.index = index;
+		this.schema = schema;
+		this.createOptions = createOptions;
+		this.ignoreErrors = ignoreErrors;
+	}
 
-    @Override
-    protected void doExecute(StepExecution stepExecution) {
-        try {
-            connection.sync().create(index, schema, createOptions);
-        } catch (RedisCommandExecutionException e) {
-            if (ignoreErrors) {
-                log.debug("Could not create index {}", index, e);
-            } else {
-                throw e;
-            }
-        }
-    }
+	@Override
+	protected void doExecute(StepExecution stepExecution) {
+		try {
+			connection.sync().create(index, schema, createOptions);
+		} catch (RedisCommandExecutionException e) {
+			if (ignoreErrors) {
+				log.debug("Could not create index {}", index, e);
+			} else {
+				throw e;
+			}
+		}
+	}
 
-    public static IndexCreateStepBuilder builder() {
-        return new IndexCreateStepBuilder();
-    }
+	public static IndexCreateStepBuilder builder() {
+		return new IndexCreateStepBuilder();
+	}
 
-    @Setter
-    @Accessors(fluent = true)
-    public static class IndexCreateStepBuilder extends RediSearchConnectionBuilder<IndexCreateStepBuilder> {
+	@Setter
+	@Accessors(fluent = true)
+	public static class IndexCreateStepBuilder extends RediSearchConnectionBuilder<IndexCreateStepBuilder> {
 
-        private String index;
-        private Schema schema;
-        private CreateOptions createOptions;
-        private boolean ignoreErrors;
+		private String index;
+		private Schema<String> schema;
+		private CreateOptions<String, String> createOptions;
+		private boolean ignoreErrors;
 
-        public IndexCreateStep<String, String> build() {
-            return new IndexCreateStep<>(connection(), index, schema, createOptions, ignoreErrors);
-        }
-    }
+		public IndexCreateStep<String, String> build() {
+			return new IndexCreateStep<>(connection(), index, schema, createOptions, ignoreErrors);
+		}
+	}
 
 }

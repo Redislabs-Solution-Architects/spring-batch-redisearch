@@ -9,7 +9,7 @@ public class MapSuggestionProcessor implements ItemProcessor<Map<String, String>
 
     @Override
     public Suggestion<String> process(Map<String, String> item) {
-        return Suggestion.builder().string(item.get(Utils.NAME)).build();
+        return Suggestion.<String>builder().string(item.get(Utils.NAME)).build();
     }
 
 }

@@ -16,9 +16,9 @@ public class Utils {
 	public final static String INDEX = "beers";
 	public final static String SUGGEST_KEY = "beersSuggest";
 
-	public final static Schema SCHEMA = Schema.builder()
-			.field(TextField.builder().name(NAME).matcher(PhoneticMatcher.English).build())
-			.field(TagField.builder().name(STYLE).sortable(true).build())
-			.field(NumericField.builder().name(ABV).sortable(true).build()).build();
+	public final static Schema<String> SCHEMA = Schema.<String>builder()
+			.field(TextField.<String>builder().name(NAME).matcher(PhoneticMatcher.English).build())
+			.field(TagField.<String>builder().name(STYLE).sortable(true).build())
+			.field(NumericField.<String>builder().name(ABV).sortable(true).build()).build();
 
 }

@@ -7,6 +7,7 @@ import io.lettuce.core.RedisURI;
 import io.lettuce.core.resource.ClientResources;
 import io.lettuce.core.support.ConnectionPoolSupport;
 import org.apache.commons.pool2.impl.GenericObjectPool;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 
 import java.time.Duration;
 import java.util.function.Supplier;
@@ -17,7 +18,7 @@ public class RediSearchConnectionBuilder<B extends RediSearchConnectionBuilder<B
     private RedisURI redisURI;
     private ClientResources clientResources;
     private ClientOptions clientOptions;
-    private ConnectionPoolConfig poolConfig = ConnectionPoolConfig.builder().build();
+    private GenericObjectPoolConfig<StatefulRediSearchConnection<String, String>> poolConfig = new GenericObjectPoolConfig<>();
 
     public RedisURI getRedisURI() {
         return redisURI;
@@ -37,7 +38,7 @@ public class RediSearchConnectionBuilder<B extends RediSearchConnectionBuilder<B
         return (B) this;
     }
 
-    public B poolConfig(ConnectionPoolConfig poolConfig) {
+    public B poolConfig(GenericObjectPoolConfig<StatefulRediSearchConnection<String, String>> poolConfig) {
         this.poolConfig = poolConfig;
         return (B) this;
     }
@@ -71,7 +72,7 @@ public class RediSearchConnectionBuilder<B extends RediSearchConnectionBuilder<B
     }
 
     public GenericObjectPool<StatefulRediSearchConnection<String, String>> pool() {
-        return ConnectionPoolSupport.createGenericObjectPool(connectionSupplier(), poolConfig.config());
+        return ConnectionPoolSupport.createGenericObjectPool(connectionSupplier(), poolConfig);
     }
 
 }
