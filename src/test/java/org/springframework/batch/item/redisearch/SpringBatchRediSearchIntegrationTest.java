@@ -28,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.utility.DockerImageName;
 
 import com.redislabs.lettusearch.RediSearchClient;
 import com.redislabs.lettusearch.RediSearchUtils;
@@ -66,7 +67,7 @@ public class SpringBatchRediSearchIntegrationTest {
 
 	@BeforeAll
 	public static void setup() {
-		redis = new GenericContainer("redislabs/redisearch:latest").withExposedPorts(6379);
+		redis = new GenericContainer(DockerImageName.parse("redislabs/redisearch:latest")).withExposedPorts(6379);
 		redis.start();
 		redisURI = RedisURI.create(redis.getHost(), redis.getFirstMappedPort());
 		redisClient = RediSearchClient.create(redisURI);
